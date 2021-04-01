@@ -38,6 +38,7 @@ gmsh.model.geo.synchronize()
 gmsh.model.mesh.generate(3)
 
 gmsh.write("t2.msh")
+gmsh.write("t2.vtk")
 gmsh.write("t2.geo_unrolled")
 
 if '-nopopup' not in sys.argv:
