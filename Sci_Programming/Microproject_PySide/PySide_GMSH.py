@@ -7,16 +7,16 @@ from PySide6 import QtWidgets
 from PySide6 import QtGui
 
 
-gmsh.initialize()
-
-gmsh.model.add("t1")
-
 lc = 1e-2
-
+EXIT_CODE_REBOOT = -11231351
 
 class MainWindow(QtWidgets.QMainWindow):
 
     def __init__(self, parent=None):
+    
+        gmsh.initialize()
+
+        gmsh.model.add("t1")
     
         self.arr_1 = [] # Массив массивов-координат
         self.arr_3 = [] # Массив номеров loop'ов
@@ -49,6 +49,9 @@ class MainWindow(QtWidgets.QMainWindow):
         
         self.mesh = QtWidgets.QPushButton('Create Mesh') # Делаем сетку
         self.mesh.clicked.connect(self.create_mesh)
+        
+        self.restart = QtWidgets.QPushButton('Restart') # Перезапускаем
+        self.restart.clicked.connect(self.do_restart)
 
         self.layout.addRow(QtWidgets.QLabel("Enter Point Coordinates:"), self.coord)
         self.layout.addRow(QtWidgets.QLabel("Enter Points You Want to Loop in Curve:"), self.loop)
@@ -57,10 +60,24 @@ class MainWindow(QtWidgets.QMainWindow):
         self.layout.addRow(self.pr_data_b)
         self.layout.addRow(self.get_data_l)
         self.layout.addRow(self.mesh)
+        self.layout.addRow(self.restart)
         
 
         self.win.setLayout(self.layout)
         self.setCentralWidget(self.win)
+        
+        
+        self.SA = QtWidgets.QScrollArea()
+        self.SA.setGeometry(QtCore.QRect(12, 180, 100, 179))
+        self.SA.setFrameShape(QtWidgets.QFrame.NoFrame)
+        self.SA.setObjectName("SA")
+        self.SA.setWidgetResizable(True)
+        self.SA.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOn)
+        self.SA.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOn)
+
+        self.SA.setWidget(self.win)
+        
+        self.setCentralWidget(self.SA)
 
 
     def get_data(self):  # Считать координаты
@@ -118,12 +135,18 @@ class MainWindow(QtWidgets.QMainWindow):
  
     def create_mesh(self):  # Создание surface loop, объёма, сетки
     
-        v = gmsh.model.geo.addSurfaceLoop([i + 1 for i in range(self.CL - 1)])
-        gmsh.model.geo.addVolume([v])
+        try:
+            v = gmsh.model.geo.addSurfaceLoop([i + 1 for i in range(self.CL - 1)])
+            gmsh.model.geo.addVolume([v])
         
-        gmsh.model.geo.synchronize()
+            gmsh.model.geo.synchronize()
 
-        gmsh.model.mesh.generate(3)
+            gmsh.model.mesh.generate(3)
+         
+        except:
+            gmsh.model.geo.synchronize()
+            
+            gmsh.model.mesh.generate(2)
 
         gmsh.write("t1.msh")
         gmsh.write("t1.geo_unrolled")
@@ -133,17 +156,32 @@ class MainWindow(QtWidgets.QMainWindow):
             gmsh.fltk.run()
 
         gmsh.finalize()
+        
+    def do_restart(self):  # Перезапуск
+    
+        return QtCore.QCoreApplication.exit( EXIT_CODE_REBOOT )
     
 
 def main():
-    
-    app = QtWidgets.QApplication(sys.argv)
-    win = MainWindow()
-    win.resize(800, 600)
-    win.show()
-    app.exec_()
+
+    exit_code = 0
+    while True:
+        try:
+            app = QtWidgets.QApplication(sys.argv)
+        except RuntimeError:
+            app = QtCore.QCoreApplication.instance()
+            
+        win = MainWindow()
+        win.resize(600, 500)
+        win.show()            
+        
+        exit_code = app.exec_()          
+        
+        if exit_code != EXIT_CODE_REBOOT:
+            break        
+            
+    return exit_code
 
 
 if __name__ == '__main__':
     main()
-    
